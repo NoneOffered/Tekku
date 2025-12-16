@@ -4,37 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
-    <title>Homepage - Tekku Solutions</title>
+    <title>Tekku Solutions - Market Prices</title>
 </head>
 <body>
-    <section class="showcase">
-        <header>
-            <h2 class="logo">Tekku Solutions</h2>
-            <div class="toggle"></div>
-        </header>
-        <video src="mixkit-blinking-round-lights.mp4" muted loop autoplay class="video"></video>
-        <div class="overlay"></div>
-        <div class="text">
-            <h2>Technical due diligence and analysis</h2>
-            <h3>Advanced hardware & software</h3>
-            <p>Tekku Solutions is a consultancy and technology development company. The company focuses on the development and delivery of advanced software for technical analysis. Please contact by <a href = "mailto: info@tekku.co.uk">email</a> for more information.</p>
-            <!-- <a href="">Explore</a> -->
+    <!-- Navigation Header -->
+    <header class="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <h1>Tekku Solutions</h1>
+            </div>
+            <nav class="nav-links">
+                <a href="#prices">Market Prices</a>
+                <a href="mailto:info@tekku.co.uk">Contact</a>
+            </nav>
         </div>
-         <!--<ul class="social">
-            <li><img src="https://i.ibb.co/x7P24fL/facebook.png" alt=""></li>
-            <li><img src="https://i.ibb.co/ySwtH4B/instagram.png" alt=""></li>
-            <li><img src="https://i.ibb.co/Wnxq2Nq/twitter.png" alt=""></li>
-        </ul> -->
+    </header>
+
+    <!-- Market Prices Section -->
+    <section id="prices" class="market-prices-section">
+        <div class="market-prices-container">
+            <div class="section-header">
+                <h2 class="section-title">Market Prices</h2>
+                <p class="section-description">Real-time commodity prices and market data</p>
+            </div>
+            
+            <div id="price-grid" class="price-grid"></div>
+            
+            <div class="market-prices-footer">
+                <button id="refresh-prices-btn" class="refresh-btn">
+                    <span class="btn-text">Refresh Prices</span>
+                </button>
+                <span id="last-update" class="last-update"></span>
+            </div>
+        </div>
     </section>
-    <!--<div class="menu">
-        <ul>
-            <li><a href="#">Home</a></li>
-            <li><a href="#">News</a></li>
-            <li><a href="#">Destination</a></li>
-            <li><a href="#">Blog</a></li>
-            <li><a href="#">Contact</a></li>
-        </ul>
-    </div> -->
-    <script src="./index.js"></script>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="footer-container">
+            <p>&copy; 2025 Tekku Solutions. All rights reserved.</p>
+            <p>Contact: <a href="mailto:info@tekku.co.uk">info@tekku.co.uk</a></p>
+        </div>
+    </footer>
+
+    <script type="module" src="./index.js"></script>
 </body>
 </html>
