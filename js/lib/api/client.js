@@ -66,13 +66,13 @@ export async function fetchCommodityPrice(commodityName) {
     // Route to appropriate API based on commodity
     switch (commodityName) {
       case "Gold":
-        priceData = await fetchWithRetry(() => fetchGoldFromYahoo());
+        priceData = await fetchWithRetry(() => fetchGoldPrice());
         break;
       case "Silver":
-        priceData = await fetchWithRetry(() => fetchSilverFromYahoo());
+        priceData = await fetchWithRetry(() => fetchSilverPrice());
         break;
       case "Platinum":
-        priceData = await fetchWithRetry(() => fetchPlatinumFromYahoo());
+        priceData = await fetchWithRetry(() => fetchPlatinumPrice());
         break;
       case "Copper":
         priceData = await fetchWithRetry(() => fetchCopperPrice());
