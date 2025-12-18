@@ -129,13 +129,27 @@ async function fetchMetalFromYahoo(symbol, commodity, unit) {
                          (regularMarketPrice ? regularMarketPrice * 0.99 : 0);
     
     // First, try to use the direct change fields from Yahoo Finance
+    // These are the most accurate as they come directly from Yahoo
     let change = meta.regularMarketChange;
     let changePercent = meta.regularMarketChangePercent;
     
-    // If those aren't available, calculate from price difference
-    if (change === undefined || change === null) {
-      change = regularMarketPrice - previousClose;
-      changePercent = previousClose && previousClose !== 0 ? (change / previousClose) * 100 : 0;
+    // Check if change is explicitly undefined/null (not just 0, which is valid)
+    const hasChangeField = change !== undefined && change !== null;
+    const hasChangePercentField = changePercent !== undefined && changePercent !== null;
+    
+    // If change fields aren't available, calculate from price difference
+    if (!hasChangeField || !hasChangePercentField) {
+      if (previousClose && previousClose !== 0 && previousClose !== regularMarketPrice) {
+        change = regularMarketPrice - previousClose;
+        changePercent = (change / previousClose) * 100;
+        console.debug(`Calculated change for ${commodity} from prices: change=${change}, changePercent=${changePercent}`);
+      } else {
+        // If we can't calculate, set to 0 (no change)
+        change = change !== undefined ? change : 0;
+        changePercent = changePercent !== undefined ? changePercent : 0;
+      }
+    } else {
+      console.debug(`Using Yahoo Finance change fields for ${commodity}: change=${change}, changePercent=${changePercent}`);
     }
     
     // If still 0 or undefined, try to get from quote indicators
