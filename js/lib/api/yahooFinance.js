@@ -172,14 +172,32 @@ async function fetchYahooFinancePrice(symbol, commodityName, unit) {
     }
     
     // Final fallback: if we have a valid previousClose, use it
-    if ((change === 0 || change === undefined) && previousClose && previousClose !== regularMarketPrice) {
+    if ((change === 0 || change === undefined || isNaN(change)) && previousClose && previousClose !== regularMarketPrice && previousClose !== 0) {
       change = regularMarketPrice - previousClose;
       changePercent = previousClose ? (change / previousClose) * 100 : 0;
       console.log(`[DEBUG] Using calculated change for ${commodityName}: change=${change}, changePercent=${changePercent}, price=${regularMarketPrice}, prevClose=${previousClose}`);
     }
     
+    // If still 0 or undefined, try to calculate from historical data (compare to yesterday or last week)
+    if ((change === 0 || change === undefined || isNaN(change)) && result.indicators && result.indicators.quote) {
+      const quote = result.indicators.quote[0];
+      if (quote.close && quote.close.length > 0) {
+        const closes = quote.close.filter(c => c !== null && c !== undefined && c > 0);
+        if (closes.length >= 2) {
+          // Compare current to previous day
+          const currentPrice = closes[closes.length - 1];
+          const yesterdayPrice = closes[closes.length - 2];
+          if (currentPrice && yesterdayPrice && currentPrice !== yesterdayPrice) {
+            change = currentPrice - yesterdayPrice;
+            changePercent = yesterdayPrice ? (change / yesterdayPrice) * 100 : 0;
+            console.log(`[DEBUG] Using historical quote data for ${commodityName}: change=${change}, changePercent=${changePercent}`);
+          }
+        }
+      }
+    }
+    
     // Final debug log
-    console.log(`[DEBUG] Final values for ${commodityName}: change=${change}, changePercent=${changePercent}, price=${regularMarketPrice}`);
+    console.log(`[DEBUG] Final values for ${commodityName}: change=${change}, changePercent=${changePercent}, price=${regularMarketPrice}, hasChangeField=${hasChangeField}`);
     
     // Ensure we have valid numbers
     change = change !== undefined && change !== null ? parseFloat(change) : 0;
