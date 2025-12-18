@@ -113,15 +113,14 @@ async function fetchYahooFinancePrice(symbol, commodityName, unit) {
     const meta = result.meta;
     
     // Debug: Log available meta fields to understand the structure
-    console.debug(`Yahoo Finance meta for ${commodityName}:`, {
+    console.log(`[DEBUG] Yahoo Finance meta for ${commodityName}:`, JSON.stringify({
       regularMarketPrice: meta.regularMarketPrice,
       previousClose: meta.previousClose,
       chartPreviousClose: meta.chartPreviousClose,
       regularMarketPreviousClose: meta.regularMarketPreviousClose,
       regularMarketChange: meta.regularMarketChange,
-      regularMarketChangePercent: meta.regularMarketChangePercent,
-      allKeys: Object.keys(meta)
-    });
+      regularMarketChangePercent: meta.regularMarketChangePercent
+    }, null, 2));
     
     const regularMarketPrice = meta.regularMarketPrice || meta.chartPreviousClose || 0;
     
@@ -152,7 +151,7 @@ async function fetchYahooFinancePrice(symbol, commodityName, unit) {
         changePercent = changePercent !== undefined ? changePercent : 0;
       }
     } else {
-      console.debug(`Using Yahoo Finance change fields for ${commodityName}: change=${change}, changePercent=${changePercent}`);
+      console.log(`[DEBUG] Using Yahoo Finance change fields for ${commodityName}: change=${change}, changePercent=${changePercent}`);
     }
     
     // If still 0 or undefined, try to get from quote indicators (intraday data)
@@ -163,11 +162,11 @@ async function fetchYahooFinancePrice(symbol, commodityName, unit) {
         if (closes.length >= 2) {
           const currentClose = closes[closes.length - 1];
           const prevClose = closes[closes.length - 2];
-          if (currentClose && prevClose && currentClose !== prevClose) {
-            change = currentClose - prevClose;
-            changePercent = prevClose ? (change / prevClose) * 100 : 0;
-            console.debug(`Using quote data for ${commodityName}: change=${change}, changePercent=${changePercent}`);
-          }
+        if (currentClose && prevClose && currentClose !== prevClose) {
+          change = currentClose - prevClose;
+          changePercent = prevClose ? (change / prevClose) * 100 : 0;
+          console.log(`[DEBUG] Using quote data for ${commodityName}: change=${change}, changePercent=${changePercent}`);
+        }
         }
       }
     }
@@ -176,8 +175,11 @@ async function fetchYahooFinancePrice(symbol, commodityName, unit) {
     if ((change === 0 || change === undefined) && previousClose && previousClose !== regularMarketPrice) {
       change = regularMarketPrice - previousClose;
       changePercent = previousClose ? (change / previousClose) * 100 : 0;
-      console.debug(`Using calculated change for ${commodityName}: change=${change}, changePercent=${changePercent}`);
+      console.log(`[DEBUG] Using calculated change for ${commodityName}: change=${change}, changePercent=${changePercent}, price=${regularMarketPrice}, prevClose=${previousClose}`);
     }
+    
+    // Final debug log
+    console.log(`[DEBUG] Final values for ${commodityName}: change=${change}, changePercent=${changePercent}, price=${regularMarketPrice}`);
     
     // Ensure we have valid numbers
     change = change !== undefined && change !== null ? parseFloat(change) : 0;

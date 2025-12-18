@@ -111,14 +111,14 @@ async function fetchMetalFromYahoo(symbol, commodity, unit) {
     const meta = result.meta;
     
     // Debug: Log available meta fields
-    console.debug(`Yahoo Finance meta for ${commodity}:`, {
+    console.log(`[DEBUG] Yahoo Finance meta for ${commodity}:`, JSON.stringify({
       regularMarketPrice: meta.regularMarketPrice,
       previousClose: meta.previousClose,
       chartPreviousClose: meta.chartPreviousClose,
       regularMarketPreviousClose: meta.regularMarketPreviousClose,
       regularMarketChange: meta.regularMarketChange,
       regularMarketChangePercent: meta.regularMarketChangePercent
-    });
+    }, null, 2));
     
     const regularMarketPrice = meta.regularMarketPrice || meta.chartPreviousClose || 0;
     
