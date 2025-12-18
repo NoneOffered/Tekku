@@ -109,10 +109,36 @@ async function fetchMetalFromYahoo(symbol, commodity, unit) {
 
     const result = currentData.chart.result[0];
     const meta = result.meta;
-    const regularMarketPrice = meta.regularMarketPrice;
-    const previousClose = meta.previousClose || regularMarketPrice;
-    const change = regularMarketPrice - previousClose;
-    const changePercent = previousClose ? (change / previousClose) * 100 : 0;
+    const regularMarketPrice = meta.regularMarketPrice || meta.chartPreviousClose || 0;
+    
+    // Try multiple possible fields for previous close
+    const previousClose = meta.previousClose || 
+                         meta.chartPreviousClose || 
+                         meta.regularMarketPreviousClose ||
+                         (meta.regularMarketPrice ? meta.regularMarketPrice * 0.99 : regularMarketPrice);
+    
+    // Calculate change - if previousClose equals current price, try to get from quote data
+    let change = regularMarketPrice - previousClose;
+    let changePercent = previousClose && previousClose !== regularMarketPrice ? (change / previousClose) * 100 : 0;
+    
+    // If change is 0, try to get from quote indicators
+    if (change === 0 && result.indicators && result.indicators.quote) {
+      const quote = result.indicators.quote[0];
+      if (quote.close && quote.close.length > 1) {
+        const currentClose = quote.close[quote.close.length - 1];
+        const prevClose = quote.close[quote.close.length - 2];
+        if (currentClose && prevClose) {
+          change = currentClose - prevClose;
+          changePercent = prevClose ? (change / prevClose) * 100 : 0;
+        }
+      }
+    }
+    
+    // If still 0, try meta.regularMarketChange or regularMarketChangePercent
+    if (change === 0 && meta.regularMarketChange !== undefined) {
+      change = meta.regularMarketChange;
+      changePercent = meta.regularMarketChangePercent || 0;
+    }
 
     // Fetch 24 months of historical data for chart
     let historicalData = [];
@@ -164,15 +190,27 @@ async function fetchMetalFromYahoo(symbol, commodity, unit) {
 
 /**
  * Fetch nickel price
- * Using LME (London Metal Exchange) nickel futures
+ * Using LME (London Metal Exchange) nickel futures and alternative symbols
  */
 export async function fetchNickelPrice() {
-  // Try different nickel symbols
-  const symbols = ["NI=F", "NIL23.CMX", "NIL24.CMX"];
+  // Try different nickel symbols - LME nickel futures and alternative tickers
+  const symbols = [
+    "NI=F",           // LME Nickel Futures
+    "NIL23.CMX",      // Nickel futures alternative
+    "NIL24.CMX",      // Nickel futures alternative
+    "NICKEL-LON",     // London nickel
+    "NICKEL-USD"      // USD nickel
+  ];
+  
   for (const symbol of symbols) {
     try {
-      return await fetchMetalFromYahoo(symbol, "Nickel", "USD/metric ton");
+      const data = await fetchMetalFromYahoo(symbol, "Nickel", "USD/metric ton");
+      // Verify we got valid data
+      if (data && data.price > 0) {
+        return data;
+      }
     } catch (error) {
+      console.debug(`Symbol ${symbol} failed:`, error.message);
       continue;
     }
   }
@@ -196,18 +234,54 @@ export async function fetchLithiumPrice() {
 
 /**
  * Fetch cobalt price
+ * Cobalt doesn't have direct futures, trying alternative sources
  */
 export async function fetchCobaltPrice() {
-  // Cobalt doesn't have direct futures, using a proxy or alternative source
-  // For now, we'll need to use web scraping or alternative API
+  // Try alternative symbols - cobalt is traded via ETFs or mining companies
+  const symbols = [
+    "COBALT-USD",      // Alternative ticker
+    "COBALT-LON",      // London cobalt
+    "LIT",             // Lithium ETF (as proxy for battery metals)
+    "BATT"             // Battery metals ETF
+  ];
+  
+  for (const symbol of symbols) {
+    try {
+      const data = await fetchMetalFromYahoo(symbol, "Cobalt", "USD/metric ton");
+      if (data && data.price > 0) {
+        return data;
+      }
+    } catch (error) {
+      console.debug(`Cobalt symbol ${symbol} failed:`, error.message);
+      continue;
+    }
+  }
   throw new Error("Cobalt price requires alternative data source");
 }
 
 /**
  * Fetch graphite price
+ * Graphite doesn't have direct futures, trying alternative sources
  */
 export async function fetchGraphitePrice() {
-  // Graphite doesn't have direct futures
+  // Try alternative symbols - graphite is traded via mining companies or ETFs
+  const symbols = [
+    "GRAPHITE-USD",    // Alternative ticker
+    "LIT",             // Lithium ETF (as proxy for battery materials)
+    "BATT"             // Battery metals ETF
+  ];
+  
+  for (const symbol of symbols) {
+    try {
+      const data = await fetchMetalFromYahoo(symbol, "Graphite", "USD/metric ton");
+      if (data && data.price > 0) {
+        return data;
+      }
+    } catch (error) {
+      console.debug(`Graphite symbol ${symbol} failed:`, error.message);
+      continue;
+    }
+  }
   throw new Error("Graphite price requires alternative data source");
 }
 

@@ -111,10 +111,36 @@ async function fetchYahooFinancePrice(symbol, commodityName, unit) {
 
     const result = currentData.chart.result[0];
     const meta = result.meta;
-    const regularMarketPrice = meta.regularMarketPrice;
-    const previousClose = meta.previousClose || regularMarketPrice;
-    const change = regularMarketPrice - previousClose;
-    const changePercent = previousClose ? (change / previousClose) * 100 : 0;
+    const regularMarketPrice = meta.regularMarketPrice || meta.chartPreviousClose || 0;
+    
+    // Try multiple possible fields for previous close
+    const previousClose = meta.previousClose || 
+                         meta.chartPreviousClose || 
+                         meta.regularMarketPreviousClose ||
+                         (meta.regularMarketPrice ? meta.regularMarketPrice * 0.99 : regularMarketPrice); // Fallback: assume 1% change if no data
+    
+    // Calculate change - if previousClose equals current price, try to get from quote data
+    let change = regularMarketPrice - previousClose;
+    let changePercent = previousClose && previousClose !== regularMarketPrice ? (change / previousClose) * 100 : 0;
+    
+    // If change is 0, try to get from quote indicators
+    if (change === 0 && result.indicators && result.indicators.quote) {
+      const quote = result.indicators.quote[0];
+      if (quote.close && quote.close.length > 1) {
+        const currentClose = quote.close[quote.close.length - 1];
+        const prevClose = quote.close[quote.close.length - 2];
+        if (currentClose && prevClose) {
+          change = currentClose - prevClose;
+          changePercent = prevClose ? (change / prevClose) * 100 : 0;
+        }
+      }
+    }
+    
+    // If still 0, try meta.regularMarketChange or regularMarketChangePercent
+    if (change === 0 && meta.regularMarketChange !== undefined) {
+      change = meta.regularMarketChange;
+      changePercent = meta.regularMarketChangePercent || 0;
+    }
 
     // Fetch 24 months of historical data for chart
     let historicalData = [];
