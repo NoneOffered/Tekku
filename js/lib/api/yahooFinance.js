@@ -1,0 +1,244 @@
+/**
+ * Yahoo Finance API Client (Public Endpoints)
+ * Free, no API key required
+ * Uses public Yahoo Finance endpoints
+ */
+
+/**
+ * Check if we need to use a CORS proxy
+ * @returns {boolean}
+ */
+function needsCorsProxy() {
+  // Check if we're on GitHub Pages or if fetch fails due to CORS
+  return window.location.hostname.includes('github.io') || 
+         window.location.hostname.includes('github.com');
+}
+
+/**
+ * Get CORS proxy URL if needed
+ * @param {string} url - Original URL
+ * @returns {string} - Proxied URL or original URL
+ */
+function getProxiedUrl(url) {
+  if (needsCorsProxy()) {
+    // Try multiple CORS proxy options
+    // Option 1: allorigins (returns raw response)
+    return `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
+/**
+ * Fetch with timeout
+ * @param {string} url - URL to fetch
+ * @param {Object} options - Fetch options
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Promise<Response>}
+ */
+function fetchWithTimeout(url, options = {}, timeout = 10000) {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), timeout)
+    )
+  ]);
+}
+
+/**
+ * Fetch with CORS proxy fallback
+ * @param {string} url - URL to fetch
+ * @param {Object} options - Fetch options
+ * @returns {Promise<Response>}
+ */
+async function fetchWithCorsFallback(url, options = {}) {
+  const timeout = 10000; // 10 seconds
+  
+  try {
+    // Try direct fetch first (only if not on GitHub Pages)
+    if (!needsCorsProxy()) {
+      const response = await fetchWithTimeout(url, options, timeout);
+      if (response.ok) {
+        return response;
+      }
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    // On GitHub Pages, use proxy directly
+    const proxiedUrl = getProxiedUrl(url);
+    const response = await fetchWithTimeout(proxiedUrl, options, timeout);
+    if (response.ok) {
+      return response;
+    }
+    throw new Error(`HTTP ${response.status}`);
+  } catch (error) {
+    // If proxy fails, try direct (might work in some cases)
+    if (needsCorsProxy() && !url.includes('allorigins.win')) {
+      try {
+        const response = await fetchWithTimeout(url, options, timeout);
+        if (response.ok) {
+          return response;
+        }
+      } catch (directError) {
+        // Both failed
+        throw new Error(`CORS proxy failed: ${error.message}, Direct failed: ${directError.message}`);
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Fetch commodity price from Yahoo Finance with historical data
+ * @param {string} symbol - Yahoo Finance symbol (e.g., "GC=F" for Gold, "SI=F" for Silver)
+ * @param {string} commodityName - Display name for commodity
+ * @param {string} unit - Unit of measurement
+ * @returns {Promise<Object>}
+ */
+async function fetchYahooFinancePrice(symbol, commodityName, unit) {
+  try {
+    // Fetch current price
+    const currentUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+    
+    const currentResponse = await fetchWithCorsFallback(currentUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0'
+      },
+      mode: 'cors'
+    });
+
+    if (!currentResponse.ok) {
+      throw new Error(`HTTP error! status: ${currentResponse.status}`);
+    }
+
+    const currentData = await currentResponse.json();
+    
+    if (!currentData.chart || !currentData.chart.result || currentData.chart.result.length === 0) {
+      throw new Error('No data returned from Yahoo Finance');
+    }
+
+    const result = currentData.chart.result[0];
+    const meta = result.meta;
+    const regularMarketPrice = meta.regularMarketPrice;
+    const previousClose = meta.previousClose || regularMarketPrice;
+    const change = regularMarketPrice - previousClose;
+    const changePercent = previousClose ? (change / previousClose) * 100 : 0;
+
+    // Fetch 24 months of historical data for chart
+    let historicalData = [];
+    try {
+      const historicalUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1mo&range=2y`;
+      const historicalResponse = await fetchWithCorsFallback(historicalUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0'
+        },
+        mode: 'cors'
+      });
+
+      if (historicalResponse.ok) {
+        const historicalJson = await historicalResponse.json();
+        if (historicalJson.chart && historicalJson.chart.result && historicalJson.chart.result.length > 0) {
+          const histResult = historicalJson.chart.result[0];
+          const timestamps = histResult.timestamp || [];
+          const closes = histResult.indicators?.quote?.[0]?.close || [];
+          
+          // Convert to our format
+          historicalData = timestamps.map((timestamp, index) => ({
+            date: new Date(timestamp * 1000).toISOString(),
+            price: closes[index] || regularMarketPrice
+          })).filter(d => d.price > 0); // Filter out invalid prices
+        }
+      }
+    } catch (histError) {
+      console.warn(`Could not fetch historical data for ${commodityName}:`, histError);
+      // Will use generated historical data as fallback
+    }
+
+    return {
+      commodity: commodityName,
+      price: parseFloat(regularMarketPrice) || 0,
+      unit: unit,
+      change: parseFloat(change) || 0,
+      changePercent: parseFloat(changePercent) || 0,
+      lastUpdated: new Date().toISOString(),
+      source: "Yahoo Finance",
+      isMockData: false,
+      historicalData: historicalData.length > 0 ? historicalData : undefined
+    };
+  } catch (error) {
+    console.error(`Error fetching ${commodityName} from Yahoo Finance:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Yahoo Finance symbol mappings
+ */
+const YAHOO_SYMBOLS = {
+  "Gold": "GC=F",           // Gold Futures
+  "Silver": "SI=F",         // Silver Futures
+  "Platinum": "PL=F",       // Platinum Futures
+  "Copper": "HG=F",         // Copper Futures
+  "Gas": "NG=F",            // Natural Gas Futures
+  "Electricity": "NG=F",    // Using Natural Gas as proxy (electricity futures less common)
+};
+
+/**
+ * Fetch gold price
+ */
+export async function fetchGoldPrice() {
+  return fetchYahooFinancePrice("GC=F", "Gold", "USD/oz");
+}
+
+/**
+ * Fetch silver price
+ */
+export async function fetchSilverPrice() {
+  return fetchYahooFinancePrice("SI=F", "Silver", "USD/oz");
+}
+
+/**
+ * Fetch platinum price
+ */
+export async function fetchPlatinumPrice() {
+  return fetchYahooFinancePrice("PL=F", "Platinum", "USD/oz");
+}
+
+/**
+ * Fetch copper price
+ */
+export async function fetchCopperPrice() {
+  return fetchYahooFinancePrice("HG=F", "Copper", "USD/lb");
+}
+
+/**
+ * Fetch natural gas price
+ */
+export async function fetchGasPrice() {
+  return fetchYahooFinancePrice("NG=F", "Gas", "USD/MMBtu");
+}
+
+/**
+ * Fetch electricity price (using electricity futures or natural gas as proxy)
+ */
+export async function fetchElectricityPrice() {
+  // Electricity futures are less common, using natural gas as proxy
+  // or try PJM electricity futures if available
+  try {
+    // Try PJM electricity futures first
+    return await fetchYahooFinancePrice("PJME=F", "Electricity", "USD/MWh");
+  } catch (error) {
+    // Fallback to natural gas as proxy (they're correlated)
+    const gasData = await fetchGasPrice();
+    return {
+      ...gasData,
+      commodity: "Electricity",
+      unit: "USD/MWh",
+      source: "Yahoo Finance (Gas Proxy)"
+    };
+  }
+}
+

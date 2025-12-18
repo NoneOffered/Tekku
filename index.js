@@ -40,7 +40,12 @@ async function initializePriceTracker() {
       // Update refresh button state
       if (refreshBtn) {
         refreshBtn.disabled = state.isLoading;
-        refreshBtn.textContent = state.isLoading ? 'Loading...' : 'Refresh Prices';
+        const btnText = refreshBtn.querySelector('.btn-text');
+        if (btnText) {
+          btnText.textContent = state.isLoading ? 'Loading...' : 'Refresh Prices';
+        } else {
+          refreshBtn.textContent = state.isLoading ? 'Loading...' : 'Refresh Prices';
+        }
       }
     });
 

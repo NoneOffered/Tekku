@@ -6,7 +6,9 @@
 import { getExamplePrice } from '../../data/mockData.js';
 import { getCachedPrice, setCachedPrice } from '../utils/cache.js';
 import { normalizePriceData, validatePriceData } from '../utils/validators.js';
-import { fetchGoldPrice, fetchSilverPrice, fetchPlatinumPrice } from './freeGoldPrice.js';
+import { fetchGoldPrice as fetchGoldFromYahoo, fetchSilverPrice as fetchSilverFromYahoo, fetchPlatinumPrice as fetchPlatinumFromYahoo, fetchCopperPrice, fetchGasPrice, fetchElectricityPrice } from './yahooFinance.js';
+import { fetchNickelPrice, fetchLithiumPrice, fetchCobaltPrice, fetchGraphitePrice, fetchRareEarthsPrice } from './metalPrices.js';
+import { fetchGoldPrice as fetchGoldFromFree, fetchSilverPrice as fetchSilverFromFree, fetchPlatinumPrice as fetchPlatinumFromFree } from './freeGoldPrice.js';
 import { API_CONFIG } from '../constants.js';
 
 /**
@@ -65,16 +67,68 @@ export async function fetchCommodityPrice(commodityName) {
     // Route to appropriate API based on commodity
     switch (commodityName) {
       case "Gold":
-        priceData = await fetchWithRetry(() => fetchGoldPrice());
+        // Try Yahoo Finance first, fallback to FreeGoldPrice
+        try {
+          priceData = await fetchWithRetry(() => fetchGoldFromYahoo());
+        } catch (error) {
+          console.warn('Yahoo Finance failed for Gold, trying FreeGoldPrice:', error);
+          try {
+            priceData = await fetchWithRetry(() => fetchGoldFromFree());
+          } catch (error2) {
+            throw new Error(`Both APIs failed for Gold: ${error.message}, ${error2.message}`);
+          }
+        }
         break;
       case "Silver":
-        priceData = await fetchWithRetry(() => fetchSilverPrice());
+        // Try Yahoo Finance first, fallback to FreeGoldPrice
+        try {
+          priceData = await fetchWithRetry(() => fetchSilverFromYahoo());
+        } catch (error) {
+          console.warn('Yahoo Finance failed for Silver, trying FreeGoldPrice:', error);
+          try {
+            priceData = await fetchWithRetry(() => fetchSilverFromFree());
+          } catch (error2) {
+            throw new Error(`Both APIs failed for Silver: ${error.message}, ${error2.message}`);
+          }
+        }
         break;
       case "Platinum":
-        priceData = await fetchWithRetry(() => fetchPlatinumPrice());
+        // Try Yahoo Finance first, fallback to FreeGoldPrice
+        try {
+          priceData = await fetchWithRetry(() => fetchPlatinumFromYahoo());
+        } catch (error) {
+          console.warn('Yahoo Finance failed for Platinum, trying FreeGoldPrice:', error);
+          try {
+            priceData = await fetchWithRetry(() => fetchPlatinumFromFree());
+          } catch (error2) {
+            throw new Error(`Both APIs failed for Platinum: ${error.message}, ${error2.message}`);
+          }
+        }
         break;
-      // For other commodities, we'll use example data for now
-      // In production, add web scraping or other API clients here
+      case "Copper":
+        priceData = await fetchWithRetry(() => fetchCopperPrice());
+        break;
+      case "Gas":
+        priceData = await fetchWithRetry(() => fetchGasPrice());
+        break;
+      case "Nickel":
+        priceData = await fetchWithRetry(() => fetchNickelPrice());
+        break;
+      case "Lithium":
+        priceData = await fetchWithRetry(() => fetchLithiumPrice());
+        break;
+      case "Cobalt":
+        priceData = await fetchWithRetry(() => fetchCobaltPrice());
+        break;
+      case "Graphite":
+        priceData = await fetchWithRetry(() => fetchGraphitePrice());
+        break;
+      case "Rare Earths":
+        priceData = await fetchWithRetry(() => fetchRareEarthsPrice());
+        break;
+      case "Electricity":
+        priceData = await fetchWithRetry(() => fetchElectricityPrice());
+        break;
       default:
         throw new Error(`No API available for ${commodityName}`);
     }
@@ -90,10 +144,15 @@ export async function fetchCommodityPrice(commodityName) {
     }
   } catch (error) {
     console.warn(`Failed to fetch ${commodityName}:`, error);
+    console.error(`Error details:`, {
+      message: error.message,
+      stack: error.stack,
+      commodity: commodityName
+    });
     
     // Fallback to example data
     const exampleData = getExamplePrice(commodityName);
-    console.log(`Using example data for ${commodityName}`);
+    console.log(`Using example data for ${commodityName} due to: ${error.message}`);
     return exampleData;
   }
 }

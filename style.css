@@ -82,6 +82,13 @@ body {
   background: var(--bg-secondary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 /* Header */
@@ -109,6 +116,8 @@ body {
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.2;
 }
 
 .nav-links {
@@ -123,6 +132,23 @@ body {
   font-weight: 500;
   font-size: var(--font-size-sm);
   transition: color var(--transition-base);
+  position: relative;
+  padding: var(--spacing-xs) 0;
+}
+
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--color-primary);
+  transition: width var(--transition-base);
+}
+
+.nav-links a:hover::after {
+  width: 100%;
 }
 
 .nav-links a:hover {
@@ -163,6 +189,7 @@ body {
 .market-prices-section {
   padding: var(--spacing-3xl) var(--spacing-xl);
   background: var(--bg-secondary);
+  flex: 1;
 }
 
 .market-prices-container {
@@ -173,6 +200,9 @@ body {
 .section-header {
   text-align: center;
   margin-bottom: var(--spacing-3xl);
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .section-title {
@@ -181,11 +211,14 @@ body {
   color: var(--text-primary);
   margin-bottom: var(--spacing-md);
   letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .section-description {
   font-size: var(--font-size-lg);
   color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.6;
 }
 
 /* Price Grid */
@@ -194,6 +227,18 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--spacing-lg);
   margin-bottom: var(--spacing-2xl);
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Price Card */
@@ -204,10 +249,12 @@ body {
   box-shadow: var(--shadow-md);
   transition: transform var(--transition-base), 
               box-shadow var(--transition-base),
-              opacity var(--transition-base);
+              opacity var(--transition-base),
+              border-color var(--transition-base);
   border: 1px solid var(--color-neutral-lighter);
   position: relative;
   overflow: hidden;
+  will-change: transform;
 }
 
 .price-card:hover {
@@ -277,6 +324,10 @@ body {
   border-top: 1px solid var(--color-neutral-lighter);
   border-bottom: 1px solid var(--color-neutral-lighter);
   position: relative;
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .price-chart-svg {
@@ -301,14 +352,18 @@ body {
   padding-top: var(--spacing-md);
   font-size: var(--font-size-xs);
   color: var(--text-tertiary);
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
 }
 
 .price-card-source {
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .price-card-time {
   color: var(--text-tertiary);
+  white-space: nowrap;
 }
 
 /* Loading State */
@@ -408,6 +463,18 @@ body {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-sm);
+  font-family: var(--font-family);
+}
+
+.refresh-btn .btn-text::before {
+  content: '↻';
+  display: inline-block;
+  margin-right: var(--spacing-xs);
+  transition: transform var(--transition-base);
+}
+
+.refresh-btn:hover .btn-text::before {
+  transform: rotate(180deg);
 }
 
 .refresh-btn:hover {
@@ -424,6 +491,19 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+.refresh-btn:disabled .btn-text::before {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .last-update {
@@ -445,18 +525,25 @@ body {
   text-align: center;
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
+  line-height: 1.8;
 }
 
 .footer-container p {
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.footer-container p:last-child {
+  margin-bottom: 0;
 }
 
 .footer-container a {
   color: var(--color-primary);
   text-decoration: none;
+  transition: color var(--transition-base);
 }
 
 .footer-container a:hover {
+  color: var(--color-primary-dark);
   text-decoration: underline;
 }
 

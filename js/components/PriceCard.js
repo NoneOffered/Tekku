@@ -5,7 +5,7 @@
 
 import { formatPrice, formatChange, formatDate } from '../lib/utils/formatters.js';
 import { isExampleData } from '../data/mockData.js';
-import { createLineChart } from '../lib/utils/chart.js';
+import { createLineChart, generateChartData } from '../lib/utils/chart.js';
 
 /**
  * Price Card Component Class
@@ -38,7 +38,11 @@ export class PriceCard {
     const isExample = isExampleData(this.data);
     
     // Generate or use historical data for chart
-    const historicalData = this.data.historicalData || [];
+    let historicalData = this.data.historicalData;
+    if (!historicalData || historicalData.length === 0) {
+      // Generate synthetic historical data if not available
+      historicalData = generateChartData(this.data.price, 0.15);
+    }
     const chartSvg = historicalData.length > 0 
       ? createLineChart(historicalData, 280, 120)
       : '';
