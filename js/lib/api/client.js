@@ -6,7 +6,9 @@
 import { getExamplePrice } from '../../data/mockData.js';
 import { getCachedPrice, setCachedPrice } from '../utils/cache.js';
 import { normalizePriceData, validatePriceData } from '../utils/validators.js';
-import { fetchGoldPrice, fetchSilverPrice, fetchPlatinumPrice, fetchCopperPrice, fetchGasPrice, fetchElectricityPrice } from './yahooFinance.js';
+import { fetchGoldPrice as fetchGoldFromLBMA, fetchSilverPrice as fetchSilverFromLBMA, fetchPlatinumPrice as fetchPlatinumFromLBMA } from './lbma.js';
+import { fetchCopperPrice, fetchGasPrice, fetchElectricityPrice } from './yahooFinance.js';
+import { fetchGoldPrice as fetchGoldFromYahoo, fetchSilverPrice as fetchSilverFromYahoo, fetchPlatinumPrice as fetchPlatinumFromYahoo } from './yahooFinance.js';
 import { fetchNickelPrice, fetchLithiumPrice, fetchCobaltPrice, fetchGraphitePrice, fetchRareEarthsPrice } from './metalPrices.js';
 import { API_CONFIG } from '../constants.js';
 
@@ -66,13 +68,31 @@ export async function fetchCommodityPrice(commodityName) {
     // Route to appropriate API based on commodity
     switch (commodityName) {
       case "Gold":
-        priceData = await fetchWithRetry(() => fetchGoldPrice());
+        // Try LBMA first (official source), fallback to Yahoo Finance
+        try {
+          priceData = await fetchWithRetry(() => fetchGoldFromLBMA());
+        } catch (error) {
+          console.warn('LBMA failed for Gold, trying Yahoo Finance:', error);
+          priceData = await fetchWithRetry(() => fetchGoldFromYahoo());
+        }
         break;
       case "Silver":
-        priceData = await fetchWithRetry(() => fetchSilverPrice());
+        // Try LBMA first, fallback to Yahoo Finance
+        try {
+          priceData = await fetchWithRetry(() => fetchSilverFromLBMA());
+        } catch (error) {
+          console.warn('LBMA failed for Silver, trying Yahoo Finance:', error);
+          priceData = await fetchWithRetry(() => fetchSilverFromYahoo());
+        }
         break;
       case "Platinum":
-        priceData = await fetchWithRetry(() => fetchPlatinumPrice());
+        // Try LBMA first, fallback to Yahoo Finance
+        try {
+          priceData = await fetchWithRetry(() => fetchPlatinumFromLBMA());
+        } catch (error) {
+          console.warn('LBMA failed for Platinum, trying Yahoo Finance:', error);
+          priceData = await fetchWithRetry(() => fetchPlatinumFromYahoo());
+        }
         break;
       case "Copper":
         priceData = await fetchWithRetry(() => fetchCopperPrice());
