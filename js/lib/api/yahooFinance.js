@@ -6,12 +6,12 @@
 
 /**
  * Check if we need to use a CORS proxy
+ * Yahoo Finance blocks CORS from all external domains, so always use proxy
  * @returns {boolean}
  */
 function needsCorsProxy() {
-  // Check if we're on GitHub Pages or if fetch fails due to CORS
-  return window.location.hostname.includes('github.io') || 
-         window.location.hostname.includes('github.com');
+  // Always use proxy for Yahoo Finance as it blocks CORS from all external domains
+  return true;
 }
 
 /**
@@ -21,8 +21,7 @@ function needsCorsProxy() {
  */
 function getProxiedUrl(url) {
   if (needsCorsProxy()) {
-    // Try multiple CORS proxy options
-    // Option 1: allorigins (returns raw response)
+    // Use allorigins proxy (returns raw response, works well with JSON)
     return `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
   }
   return url;
@@ -46,42 +45,34 @@ function fetchWithTimeout(url, options = {}, timeout = 10000) {
 
 /**
  * Fetch with CORS proxy fallback
+ * Yahoo Finance blocks CORS from all external domains, so always use proxy
  * @param {string} url - URL to fetch
  * @param {Object} options - Fetch options
  * @returns {Promise<Response>}
  */
 async function fetchWithCorsFallback(url, options = {}) {
-  const timeout = 10000; // 10 seconds
+  const timeout = 15000; // 15 seconds for proxy
+  
+  // Always use CORS proxy for Yahoo Finance as it blocks all external domains
+  const proxiedUrl = getProxiedUrl(url);
   
   try {
-    // Try direct fetch first (only if not on GitHub Pages)
-    if (!needsCorsProxy()) {
-      const response = await fetchWithTimeout(url, options, timeout);
-      if (response.ok) {
-        return response;
-      }
-      throw new Error(`HTTP ${response.status}`);
-    }
-    
-    // On GitHub Pages, use proxy directly
-    const proxiedUrl = getProxiedUrl(url);
     const response = await fetchWithTimeout(proxiedUrl, options, timeout);
     if (response.ok) {
       return response;
     }
     throw new Error(`HTTP ${response.status}`);
   } catch (error) {
-    // If proxy fails, try direct (might work in some cases)
-    if (needsCorsProxy() && !url.includes('allorigins.win')) {
-      try {
-        const response = await fetchWithTimeout(url, options, timeout);
-        if (response.ok) {
-          return response;
-        }
-      } catch (directError) {
-        // Both failed
-        throw new Error(`CORS proxy failed: ${error.message}, Direct failed: ${directError.message}`);
+    // Try alternative CORS proxy if first one fails
+    const altProxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    try {
+      const altResponse = await fetchWithTimeout(altProxyUrl, options, timeout);
+      if (altResponse.ok) {
+        return altResponse;
       }
+    } catch (altError) {
+      // Both proxies failed
+      throw new Error(`CORS proxy failed: ${error.message}`);
     }
     throw error;
   }

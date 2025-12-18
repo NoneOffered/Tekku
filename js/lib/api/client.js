@@ -6,9 +6,8 @@
 import { getExamplePrice } from '../../data/mockData.js';
 import { getCachedPrice, setCachedPrice } from '../utils/cache.js';
 import { normalizePriceData, validatePriceData } from '../utils/validators.js';
-import { fetchGoldPrice as fetchGoldFromYahoo, fetchSilverPrice as fetchSilverFromYahoo, fetchPlatinumPrice as fetchPlatinumFromYahoo, fetchCopperPrice, fetchGasPrice, fetchElectricityPrice } from './yahooFinance.js';
+import { fetchGoldPrice, fetchSilverPrice, fetchPlatinumPrice, fetchCopperPrice, fetchGasPrice, fetchElectricityPrice } from './yahooFinance.js';
 import { fetchNickelPrice, fetchLithiumPrice, fetchCobaltPrice, fetchGraphitePrice, fetchRareEarthsPrice } from './metalPrices.js';
-import { fetchGoldPrice as fetchGoldFromFree, fetchSilverPrice as fetchSilverFromFree, fetchPlatinumPrice as fetchPlatinumFromFree } from './freeGoldPrice.js';
 import { API_CONFIG } from '../constants.js';
 
 /**
@@ -67,43 +66,13 @@ export async function fetchCommodityPrice(commodityName) {
     // Route to appropriate API based on commodity
     switch (commodityName) {
       case "Gold":
-        // Try Yahoo Finance first, fallback to FreeGoldPrice
-        try {
-          priceData = await fetchWithRetry(() => fetchGoldFromYahoo());
-        } catch (error) {
-          console.warn('Yahoo Finance failed for Gold, trying FreeGoldPrice:', error);
-          try {
-            priceData = await fetchWithRetry(() => fetchGoldFromFree());
-          } catch (error2) {
-            throw new Error(`Both APIs failed for Gold: ${error.message}, ${error2.message}`);
-          }
-        }
+        priceData = await fetchWithRetry(() => fetchGoldFromYahoo());
         break;
       case "Silver":
-        // Try Yahoo Finance first, fallback to FreeGoldPrice
-        try {
-          priceData = await fetchWithRetry(() => fetchSilverFromYahoo());
-        } catch (error) {
-          console.warn('Yahoo Finance failed for Silver, trying FreeGoldPrice:', error);
-          try {
-            priceData = await fetchWithRetry(() => fetchSilverFromFree());
-          } catch (error2) {
-            throw new Error(`Both APIs failed for Silver: ${error.message}, ${error2.message}`);
-          }
-        }
+        priceData = await fetchWithRetry(() => fetchSilverFromYahoo());
         break;
       case "Platinum":
-        // Try Yahoo Finance first, fallback to FreeGoldPrice
-        try {
-          priceData = await fetchWithRetry(() => fetchPlatinumFromYahoo());
-        } catch (error) {
-          console.warn('Yahoo Finance failed for Platinum, trying FreeGoldPrice:', error);
-          try {
-            priceData = await fetchWithRetry(() => fetchPlatinumFromFree());
-          } catch (error2) {
-            throw new Error(`Both APIs failed for Platinum: ${error.message}, ${error2.message}`);
-          }
-        }
+        priceData = await fetchWithRetry(() => fetchPlatinumFromYahoo());
         break;
       case "Copper":
         priceData = await fetchWithRetry(() => fetchCopperPrice());
