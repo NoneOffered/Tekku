@@ -111,36 +111,63 @@ async function fetchYahooFinancePrice(symbol, commodityName, unit) {
 
     const result = currentData.chart.result[0];
     const meta = result.meta;
+    
+    // Debug: Log available meta fields to understand the structure
+    console.debug(`Yahoo Finance meta for ${commodityName}:`, {
+      regularMarketPrice: meta.regularMarketPrice,
+      previousClose: meta.previousClose,
+      chartPreviousClose: meta.chartPreviousClose,
+      regularMarketPreviousClose: meta.regularMarketPreviousClose,
+      regularMarketChange: meta.regularMarketChange,
+      regularMarketChangePercent: meta.regularMarketChangePercent,
+      allKeys: Object.keys(meta)
+    });
+    
     const regularMarketPrice = meta.regularMarketPrice || meta.chartPreviousClose || 0;
     
-    // Try multiple possible fields for previous close
-    const previousClose = meta.previousClose || 
-                         meta.chartPreviousClose || 
+    // Try multiple possible fields for previous close - Yahoo Finance uses chartPreviousClose
+    const previousClose = meta.chartPreviousClose || 
+                         meta.previousClose || 
                          meta.regularMarketPreviousClose ||
-                         (meta.regularMarketPrice ? meta.regularMarketPrice * 0.99 : regularMarketPrice); // Fallback: assume 1% change if no data
+                         (regularMarketPrice ? regularMarketPrice * 0.99 : 0);
     
-    // Calculate change - if previousClose equals current price, try to get from quote data
-    let change = regularMarketPrice - previousClose;
-    let changePercent = previousClose && previousClose !== regularMarketPrice ? (change / previousClose) * 100 : 0;
+    // First, try to use the direct change fields from Yahoo Finance
+    let change = meta.regularMarketChange;
+    let changePercent = meta.regularMarketChangePercent;
     
-    // If change is 0, try to get from quote indicators
-    if (change === 0 && result.indicators && result.indicators.quote) {
+    // If those aren't available, calculate from price difference
+    if (change === undefined || change === null) {
+      change = regularMarketPrice - previousClose;
+      changePercent = previousClose && previousClose !== 0 ? (change / previousClose) * 100 : 0;
+    }
+    
+    // If still 0 or undefined, try to get from quote indicators (intraday data)
+    if ((change === 0 || change === undefined) && result.indicators && result.indicators.quote) {
       const quote = result.indicators.quote[0];
       if (quote.close && quote.close.length > 1) {
-        const currentClose = quote.close[quote.close.length - 1];
-        const prevClose = quote.close[quote.close.length - 2];
-        if (currentClose && prevClose) {
-          change = currentClose - prevClose;
-          changePercent = prevClose ? (change / prevClose) * 100 : 0;
+        const closes = quote.close.filter(c => c !== null && c !== undefined);
+        if (closes.length >= 2) {
+          const currentClose = closes[closes.length - 1];
+          const prevClose = closes[closes.length - 2];
+          if (currentClose && prevClose && currentClose !== prevClose) {
+            change = currentClose - prevClose;
+            changePercent = prevClose ? (change / prevClose) * 100 : 0;
+            console.debug(`Using quote data for ${commodityName}: change=${change}, changePercent=${changePercent}`);
+          }
         }
       }
     }
     
-    // If still 0, try meta.regularMarketChange or regularMarketChangePercent
-    if (change === 0 && meta.regularMarketChange !== undefined) {
-      change = meta.regularMarketChange;
-      changePercent = meta.regularMarketChangePercent || 0;
+    // Final fallback: if we have a valid previousClose, use it
+    if ((change === 0 || change === undefined) && previousClose && previousClose !== regularMarketPrice) {
+      change = regularMarketPrice - previousClose;
+      changePercent = previousClose ? (change / previousClose) * 100 : 0;
+      console.debug(`Using calculated change for ${commodityName}: change=${change}, changePercent=${changePercent}`);
     }
+    
+    // Ensure we have valid numbers
+    change = change !== undefined && change !== null ? parseFloat(change) : 0;
+    changePercent = changePercent !== undefined && changePercent !== null ? parseFloat(changePercent) : 0;
 
     // Fetch 24 months of historical data for chart
     let historicalData = [];
